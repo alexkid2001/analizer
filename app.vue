@@ -1,90 +1,92 @@
 <template>
   <v-layout>
-    <v-app-bar color="primary" title="Application bar"></v-app-bar>
-
-    <v-navigation-drawer color="primary">
-      <v-list>
-        <v-list-item title="Drawer left"></v-list-item>
-      </v-list>
-    </v-navigation-drawer>
+    <v-app-bar color="primary" title="Analyze">
+      <v-spacer />
+      <v-btn icon @click="handleOpenDialog">
+        <v-icon>mdi-cog-outline</v-icon>
+      </v-btn>
+      <options-popup v-model="dialog" @close="dialog = false" />
+    </v-app-bar>
     <v-main style="min-height: 300px" class="p-2">
       <v-container>
         <v-row>
-          <v-col>
-            <v-defaults-provider :defaults="genericInfo">
-              <GeneralInfoBlock />
-            </v-defaults-provider>
+          <DygraphChart :new-rate="newRate" />
+        </v-row>
+        <v-row>
+          <v-col v-if="streams.length" align-self="center" cols="6">
+            <GeneralInfoBlock />
           </v-col>
-          <v-col>
-            <v-btn @click="sendCommand">Send command</v-btn>
-            <v-btn @click="sendStart">Start</v-btn>
-            <v-btn @click="sendStop">Stop</v-btn>
-            <ClientOnly fallback-tag="div" fallback="Loading component...">
-              <DygraphChart />
-            </ClientOnly>
+          <v-col
+            v-for="stream in streams"
+            :key="stream.type_name === 'VIDEO' ? stream.descriptors[0].data : stream.descriptors[1].data"
+            cols="6"
+          >
+            <StreamSection v-bind="stream" />
           </v-col>
         </v-row>
       </v-container>
+      <v-toast />
     </v-main>
   </v-layout>
 </template>
+
 <script setup lang="ts">
-import GeneralInfoBlock from "~/components/GeneralInfoBlock.vue";
+import GeneralInfoBlock from '~/components/GeneralInfoBlock.vue';
+import { useToastStore } from '~/stores/toastStore';
+import { useWebSocketStore } from '~/stores/websocketStore';
 
-const genericInfo = [
-  {
-    title: "Bitrate",
-    units: "Mbit/s",
-    value: 33,
-  },
-  {
-    title: "TSIC",
-    value: 25,
-  },
-  {
-    title: "CC errors",
-    value: 0,
-  },
-];
-
-let socket: WebSocket | null = null;
-
-const initSocket = () => {
-  socket = new WebSocket("ws://bg.cesbo.com:8004/api/");
-
-  socket.onopen = () => {
-    console.log("WebSocket connection opened");
-  };
-
-  socket.onmessage = (event) => {
-    console.log("Received message:", event.data);
-  };
-
-  socket.onclose = () => {
-    console.log("WebSocket connection closed");
-  };
-};
-const sendCommand = () => {
-  // Send the command
-  const command = { cmd: "version" };
-  if (!socket) {
-    console.log("InitSocket");
-    initSocket();
+interface EnvConfig {
+  public: {
+    serverUrl: string;
   }
-  socket?.send(data: JSON.stringify(command));
+}
+//
+// const genericInfo = [
+//   {
+//     title: 'Bitrate',
+//     units: 'Mbit/s',
+//     value: 33
+//   },
+//   {
+//     title: 'TSIC',
+//     value: 25
+//   },
+//   {
+//     title: 'CC errors',
+//     value: 0
+//   }
+// ];
+
+const config: EnvConfig = useRuntimeConfig();
+// console.log(process.env, config.serverUrl);
+const webSocketStore = useWebSocketStore();
+
+// const socket: WebSocket | null = null;
+const toastStore = useToastStore();
+const dialog = ref(false);
+
+const handleGetVersion = () => {
+  // Send the command
+  const command = { cmd: 'version' };
+  webSocketStore.sendWebSocketMessage(command);
 };
 
 const sendStart = () => {
-  const command = { cmd: "start", address: "udp://239.100.10.33:5000" };
-  socket?.send(JSON.stringify(command));
+  const command = { cmd: 'start', address: 'udp://239.100.10.33:5000' };
+  webSocketStore.sendWebSocketMessage(command);
 };
 
 const sendStop = () => {
-  const command = { cmd: "stop" };
-  socket?.send(JSON.stringify(command));
+  const command = { cmd: 'stop' };
+  webSocketStore.sendWebSocketMessage(command);
 };
 
-const setNewDataToChart = () => {};
+const handleOpenDialog = () => {
+  sendStop();
+  dialog.value = true;
+};
+
+const showMessage = () => { toastStore.showSnackbar({ text: 'test', title: 'Test title', type: 'error' }); };
 
 // Received message: {
 // "pid": 18,
@@ -142,4 +144,14 @@ const setNewDataToChart = () => {};
 //   ]
 // }
 //
+
+onMounted(() => {
+  if (process.client) {
+    webSocketStore.connectWebSocket(config.public.serverUrl);
+  }
+});
+
+const newRate = computed(() => webSocketStore.rate || []);
+
+const streams = computed(() => webSocketStore.streams);
 </script>

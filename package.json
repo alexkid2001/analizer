@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "nuxt dev --dotenv .env",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -27,8 +27,12 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@mdi/font": "^7.2.96",
+    "@pinia/nuxt": "^0.4.11",
     "@types/dygraphs": "^2.1.4",
+    "@types/websocket": "^1.0.5",
     "dygraphs": "^2.2.1",
+    "pinia": "2.0.18",
     "sass": "^1.62.1",
     "vuetify": "^3.2.2"
   }
